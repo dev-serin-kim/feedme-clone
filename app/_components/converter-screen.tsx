@@ -14,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ConvertedPage, ConvertResult } from "@/features/convert";
 import { ExportBar } from "@/features/export";
 
+import { EXAMPLES } from "./examples";
+
 type ScreenState =
   | { status: "idle" }
   | { status: "invalid" }
@@ -34,15 +36,10 @@ const ERRORS = {
   },
 } as const;
 
-const EXAMPLES = [
-  "https://stephango.com/file-over-app",
-  "https://ko.wikipedia.org/wiki/마크다운",
-  "https://react.dev/blog/2024/12/05/react-19",
-];
-
-export function ConverterScreen() {
-  const [url, setUrl] = useState("");
-  const [state, setState] = useState<ScreenState>({ status: "idle" });
+/** `initial` is a page converted on the server so the first visit opens on a result instead of the empty state. */
+export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
+  const [url, setUrl] = useState(initial?.url ? decodeURI(initial.url) : "");
+  const [state, setState] = useState<ScreenState>(initial ? { status: "result", page: initial } : { status: "idle" });
   const inputRef = useRef<HTMLInputElement>(null);
   const requestId = useRef(0);
 
