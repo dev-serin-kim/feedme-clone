@@ -1,29 +1,37 @@
 "use client";
 
-import { CheckIcon, ChevronUpIcon, CopyIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, ChevronUpIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, PresentationIcon } from "lucide-react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import { buildDocument, buildHandoff, markdownFilename, type DocumentSource, type LlmService } from "../handoff";
+import { buildDocument, buildHandoff, markdownFilename, type LlmService } from "../handoff";
+import { renderSlideshowHtml } from "../slideshow";
+import { buildSlides, type SlidePage } from "../slides";
+import { SlideshowOverlay } from "./slideshow-overlay";
 
 const PRESETS = ["요약해줘", "한국어로 번역해줘", "쉽게 설명해줘"] as const;
 const CUSTOM = "custom";
 
-/** Sticky export bar under a converted page. Remount (change `key`) to reset the one-shot prompt. */
-export function ExportBar({ page }: { page: DocumentSource }) {
+/**
+ * Sticky export bar under the converted page. The page carries only its selected sections:
+ * `markdown` for documents, `sections` for slides. Remount (change `key`) to reset the one-shot prompt.
+ */
+export function ExportBar({ page }: { page: SlidePage }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [slidesHtml, setSlidesHtml] = useState<string | null>(null);
 
   const choice = selected[0];
   const prompt = choice === CUSTOM ? custom.trim() : (choice ?? "");
   const promptLabel = prompt || (choice === CUSTOM ? "직접 입력" : "없음");
   const document = buildDocument(page);
+  const empty = !page.markdown.trim();
 
   async function copy() {
     await navigator.clipboard.writeText(document);
@@ -57,7 +65,16 @@ export function ExportBar({ page }: { page: DocumentSource }) {
     });
   }
 
+  const closeSlides = useCallback(() => setSlidesHtml(null), []);
+
+  function openSlides() {
+    const filename = markdownFilename(page.title).replace(/\.md$/, ".html");
+    setSlidesHtml(renderSlideshowHtml(buildSlides(page), page.title, filename));
+  }
+
   return (
+    <>
+    {slidesHtml && <SlideshowOverlay html={slidesHtml} onClose={closeSlides} />}
     <div className="sticky bottom-0 z-10 flex flex-col gap-2.5 border-t-4 border-[#ff00ff] [border-top-style:ridge] bg-(image:--bar-background) px-4 py-3">
       {open && (
         <div id="prompt-panel" className="flex flex-col gap-2">
@@ -99,15 +116,19 @@ export function ExportBar({ page }: { page: DocumentSource }) {
           <ChevronUpIcon className={open ? "rotate-180" : undefined} />
         </Button>
         <span className="hidden flex-1 sm:block" />
-        <Button variant="outline" size="icon" aria-label="복사하기" title="복사하기" onClick={copy}>
+        <Button variant="outline" size="icon" aria-label="복사하기" title="복사하기" disabled={empty} onClick={copy}>
           {copied ? <CheckIcon /> : <CopyIcon />}
         </Button>
-        <Button variant="outline" size="icon" aria-label=".md 다운로드" title=".md 다운로드" onClick={download}>
+        <Button variant="outline" size="icon" aria-label=".md 다운로드" title=".md 다운로드" disabled={empty} onClick={download}>
           <DownloadIcon />
+        </Button>
+        <Button variant="outline" disabled={empty} onClick={openSlides}>
+          <PresentationIcon data-icon="inline-start" />
+          PPT로 보기
         </Button>
         <div className="flex w-full gap-2 sm:w-auto">
           {(["ChatGPT", "Claude"] as const).map((service) => (
-            <Button key={service} className="flex-1 sm:flex-none" onClick={() => openIn(service)}>
+            <Button key={service} className="flex-1 sm:flex-none" disabled={empty} onClick={() => openIn(service)}>
               <ExternalLinkIcon data-icon="inline-start" />
               {service}로 열기
             </Button>
@@ -115,5 +136,6 @@ export function ExportBar({ page }: { page: DocumentSource }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

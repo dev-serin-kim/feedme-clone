@@ -2,8 +2,6 @@
 
 import { CircleAlertIcon, FileTextIcon, LinkIcon, Loader2Icon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,14 +10,16 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ConvertedPage, ConvertResult } from "@/features/convert";
-import { ExportBar } from "@/features/export";
+
+import { EXAMPLES } from "./examples";
+import { ResultCard } from "./result-card";
 
 type ScreenState =
   | { status: "idle" }
   | { status: "invalid" }
   | { status: "loading" }
   | { status: "error"; error: "fetch" | "empty" }
-  | { status: "result"; page: ConvertedPage };
+  | { status: "result"; id: number; page: ConvertedPage };
 
 const WEB_URL = /^https?:\/\/[^\s/?#]+\.[^\s/?#]+/i;
 
@@ -34,17 +34,17 @@ const ERRORS = {
   },
 } as const;
 
-const EXAMPLES = [
-  "https://stephango.com/file-over-app",
-  "https://ko.wikipedia.org/wiki/마크다운",
-  "https://react.dev/blog/2024/12/05/react-19",
-];
-
-export function ConverterScreen() {
-  const [url, setUrl] = useState("");
-  const [state, setState] = useState<ScreenState>({ status: "idle" });
+/** `initial` is a page converted on the server so the first visit opens on a result instead of the empty state. */
+export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
+  const [url, setUrl] = useState(initial?.url ? decodeURI(initial.url) : "");
+  const [state, setState] = useState<ScreenState>(initial ? { status: "result", id: 0, page: initial } : { status: "idle" });
   const inputRef = useRef<HTMLInputElement>(null);
   const requestId = useRef(0);
+
+  function changeUrl(value: string) {
+    setUrl(value);
+    if (state.status === "invalid") setState({ status: "idle" });
+  }
 
   async function convert(target: string) {
     if (!WEB_URL.test(target.trim())) {
@@ -66,7 +66,7 @@ export function ConverterScreen() {
       result = { ok: false, error: "fetch" };
     }
     if (id !== requestId.current) return; // cleared or superseded meanwhile
-    if (result.ok) setState({ status: "result", page: result.page });
+    if (result.ok) setState({ status: "result", id, page: result.page });
     else if (result.error === "invalid") setState({ status: "invalid" });
     else setState({ status: "error", error: result.error });
   }
@@ -115,10 +115,7 @@ export function ConverterScreen() {
               aria-invalid={state.status === "invalid"}
               aria-describedby={state.status === "invalid" ? "url-error" : undefined}
               value={url}
-              onChange={(event) => {
-                setUrl(event.target.value);
-                if (state.status === "invalid") setState({ status: "idle" });
-              }}
+              onChange={(event) => changeUrl(event.target.value)}
               className="pr-10 pl-9"
             />
             {url && (
@@ -151,8 +148,7 @@ export function ConverterScreen() {
               key={example}
               type="button"
               onClick={() => {
-                setUrl(example);
-                if (state.status === "invalid") setState({ status: "idle" });
+                changeUrl(example);
                 inputRef.current?.focus();
               }}
               className="break-all text-left text-[#0000ee] underline underline-offset-2 hover:text-[#ff00ff] dark:text-[#66ccff]"
@@ -198,34 +194,7 @@ export function ConverterScreen() {
         </Alert>
       )}
 
-      {state.status === "result" && <ResultCard page={state.page} />}
+      {state.status === "result" && <ResultCard key={state.id} page={state.page} />}
     </main>
-  );
-}
-
-function ResultCard({ page }: { page: ConvertedPage }) {
-  const shortUrl = decodeURI(page.url).replace(/^https?:\/\//, "");
-  return (
-    <Card className="gap-0 overflow-visible py-0">
-      <header className="flex flex-col gap-2 border-b-3 border-dotted border-[#ff00ff] bg-(image:--header-panel) px-4 py-5 text-black sm:px-6">
-        <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-[#006600]">
-          <span>{page.site}</span>
-          <span aria-hidden>·</span>
-          <a href={page.url} target="_blank" rel="noopener noreferrer" className="break-all underline underline-offset-2">
-            {shortUrl}
-          </a>
-          <span aria-hidden>·</span>
-          <span>{page.length.toLocaleString("ko-KR")}자</span>
-        </p>
-        <h2 className="font-[family-name:var(--font-wordart)] text-2xl leading-snug text-[#cc0000] underline decoration-[#0000ff] decoration-wavy underline-offset-[6px]">
-          {page.title}
-        </h2>
-        {page.author && <p className="font-bold text-[#9900cc]">{page.author}</p>}
-      </header>
-      <div className="markdown px-4 py-6 sm:px-6">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{page.markdown}</ReactMarkdown>
-      </div>
-      <ExportBar key={page.url + page.length} page={page} />
-    </Card>
   );
 }
