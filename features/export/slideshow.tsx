@@ -58,7 +58,7 @@ var slides=[].slice.call(document.querySelectorAll('.slide')),i=0,stage=document
 function fit(){var vp=document.getElementById('viewport');var s=Math.min(vp.clientWidth/1280,vp.clientHeight/720);stage.style.transform='translate(-50%,-50%) scale('+s+')'}
 function shrink(){slides.forEach(function(sl){var b=sl.querySelector('.body');if(!b)return;var size=28;b.style.fontSize=size+'px';while(b.scrollHeight>b.clientHeight&&size>11){size--;b.style.fontSize=size+'px'}})}
 function show(n){i=Math.max(0,Math.min(slides.length-1,n));slides.forEach(function(s,k){s.classList.toggle('active',k===i)});count.textContent=(i+1)+' / '+slides.length}
-document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1)}else if(e.key==='ArrowLeft'||e.key==='PageUp'){show(i-1)}else if(e.key==='f'||e.key==='F'){full()}});
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1)}else if(e.key==='ArrowLeft'||e.key==='PageUp'){show(i-1)}else if(e.key==='f'||e.key==='F'){full()}else if(e.key==='Escape'&&!document.fullscreenElement&&window.parent!==window){window.parent.postMessage('feedme:close-slides','*')}});
 document.getElementById('viewport').addEventListener('click',function(){show(i+1)});
 function full(){if(document.fullscreenElement){document.exitFullscreen()}else{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()}}
 document.getElementById('prev').onclick=function(){show(i-1)};document.getElementById('next').onclick=function(){show(i+1)};document.getElementById('full').onclick=full;

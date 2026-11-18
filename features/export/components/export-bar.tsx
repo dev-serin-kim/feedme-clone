@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, ChevronUpIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, PresentationIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { buildBundle, buildHandoff, bundleFilename, markdownFilename, type LlmService } from "../handoff";
 import { renderSlideshowHtml } from "../slideshow";
 import { buildSlides, type SlidePage } from "../slides";
+import { SlideshowOverlay } from "./slideshow-overlay";
 
 const PRESETS = ["요약해줘", "한국어로 번역해줘", "쉽게 설명해줘"] as const;
 const CUSTOM = "custom";
@@ -24,6 +25,7 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
   const [custom, setCustom] = useState("");
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [slidesHtml, setSlidesHtml] = useState<string | null>(null);
 
   const choice = selected[0];
   const prompt = choice === CUSTOM ? custom.trim() : (choice ?? "");
@@ -63,17 +65,17 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
     });
   }
 
+  const closeSlides = useCallback(() => setSlidesHtml(null), []);
+
   function openSlides() {
     const title = pages.length > 1 ? `문서 ${pages.length}개 모음` : pages[0].title;
     const filename = markdownFilename(title).replace(/\.md$/, ".html");
-    const html = renderSlideshowHtml(buildSlides(pages), title, filename);
-    const href = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-    window.open(href, "_blank");
-    setTimeout(() => URL.revokeObjectURL(href), 60_000);
-    toast("발표 자료를 새 탭에서 열었어요", { description: "→/Space로 넘기고 F로 전체 화면이에요." });
+    setSlidesHtml(renderSlideshowHtml(buildSlides(pages), title, filename));
   }
 
   return (
+    <>
+    {slidesHtml && <SlideshowOverlay html={slidesHtml} onClose={closeSlides} />}
     <div className="sticky bottom-0 z-10 flex flex-col gap-2.5 border-t-4 border-[#ff00ff] [border-top-style:ridge] bg-(image:--bar-background) px-4 py-3">
       {open && (
         <div id="prompt-panel" className="flex flex-col gap-2">
@@ -135,5 +137,6 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
