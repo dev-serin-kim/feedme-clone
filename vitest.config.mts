@@ -9,6 +9,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     passWithNoTests: true,
+    // 헤더의 로그인 링크가 Supabase 클라이언트를 만든다. 세션이 없으면 네트워크 요청은 없다.
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+    },
     exclude: [
       "node_modules/**",
       ".next/**",

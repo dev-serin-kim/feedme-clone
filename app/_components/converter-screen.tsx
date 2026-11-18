@@ -3,7 +3,7 @@
 import { CircleAlertIcon, FileTextIcon, LinkIcon, Loader2Icon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppHeader } from "@/components/app-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -80,15 +80,7 @@ export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 pb-12">
-      <header className="flex items-center justify-between border-b-4 border-[#ffcc00] [border-bottom-style:ridge] bg-[#0000cc] px-3 py-2 text-[#ffff00]">
-        <span className="inline-flex items-center gap-2 font-[family-name:var(--font-wordart)] text-xl [text-shadow:2px_2px_0_#ff00ff]">
-          <span className="inline-grid size-6 place-items-center rounded-full border-2 border-[#ffff00] [border-style:outset] bg-[#ffff00] font-mono text-xs text-[#ff00ff] [text-shadow:none]">
-            md
-          </span>
-          feedme
-        </span>
-        <ThemeToggle />
-      </header>
+      <AppHeader />
 
       <section className="flex flex-col gap-3">
         <h1 className="wordart text-3xl sm:text-4xl">웹 페이지를 Markdown으로</h1>
