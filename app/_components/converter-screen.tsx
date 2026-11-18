@@ -35,8 +35,9 @@ const ERRORS = {
 } as const;
 
 const EXAMPLES = [
-  { label: "예시: 짧은 블로그 글", url: "https://stephango.com/file-over-app" },
-  { label: "예시: 긴 위키 문서", url: "https://ko.wikipedia.org/wiki/마크다운" },
+  "https://stephango.com/file-over-app",
+  "https://ko.wikipedia.org/wiki/마크다운",
+  "https://react.dev/blog/2024/12/05/react-19",
 ];
 
 export function ConverterScreen() {
@@ -143,27 +144,29 @@ export function ConverterScreen() {
             http:// 또는 https://로 시작하는 웹 페이지 주소를 입력해 주세요.
           </p>
         )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-black dark:text-[#ffff66]">
+          <span>예시:</span>
+          {EXAMPLES.map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => {
+                setUrl(example);
+                if (state.status === "invalid") setState({ status: "idle" });
+                inputRef.current?.focus();
+              }}
+              className="break-all text-left text-[#0000ee] underline underline-offset-2 hover:text-[#ff00ff] dark:text-[#66ccff]"
+            >
+              {decodeURI(example).replace(/^https:\/\//, "")}
+            </button>
+          ))}
+        </div>
       </section>
 
       {(state.status === "idle" || state.status === "invalid") && (
         <div className="flex flex-col items-center gap-3 border-3 border-dashed border-[#ff00ff] bg-white px-4 py-10 text-center font-bold text-black">
           <FileTextIcon className="size-6" />
           <p>변환한 본문이 여기에 표시됩니다.</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {EXAMPLES.map((example) => (
-              <Button
-                key={example.url}
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setUrl(example.url);
-                  convert(example.url);
-                }}
-              >
-                {example.label}
-              </Button>
-            ))}
-          </div>
         </div>
       )}
 
