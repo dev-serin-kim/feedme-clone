@@ -8,7 +8,6 @@ export type SlidePage = DocumentSource & {
 
 export type Slide =
   | { kind: "cover"; title: string; subtitle: string }
-  | { kind: "divider"; title: string }
   | { kind: "content"; title: string; body: string }
   | { kind: "end" };
 
@@ -49,28 +48,22 @@ function chunk(body: string): string[] {
   return chunks;
 }
 
-export function buildSlides(pages: SlidePage[]): Slide[] {
-  const many = pages.length > 1;
-  const subtitle = many
-    ? pages.map((page) => page.site).join(" · ")
-    : [pages[0]?.site, pages[0]?.author].filter(Boolean).join(" · ");
-  const slides: Slide[] = [{ kind: "cover", title: many ? `문서 ${pages.length}개 모음` : (pages[0]?.title ?? ""), subtitle }];
+export function buildSlides(page: SlidePage): Slide[] {
+  const subtitle = [page.site, page.author].filter(Boolean).join(" · ");
+  const slides: Slide[] = [{ kind: "cover", title: page.title, subtitle }];
 
-  for (const page of pages) {
-    if (many) slides.push({ kind: "divider", title: page.title });
-    for (const section of page.sections) {
-      // Footnote definitions render to nothing once split from their references, leaving blank slides.
-      const body = section.body
-        .split("\n")
-        .filter((line) => !/^\s*\[\^[^\]]+\]:/.test(line))
-        .join("\n")
-        .replace(/\[\^[^\]]+\]/g, "")
-        .trim();
-      if (!body) continue;
-      chunk(body).forEach((body, index) => {
-        slides.push({ kind: "content", title: index ? `${section.title} (계속)` : section.title, body });
-      });
-    }
+  for (const section of page.sections) {
+    // Footnote definitions render to nothing once split from their references, leaving blank slides.
+    const body = section.body
+      .split("\n")
+      .filter((line) => !/^\s*\[\^[^\]]+\]:/.test(line))
+      .join("\n")
+      .replace(/\[\^[^\]]+\]/g, "")
+      .trim();
+    if (!body) continue;
+    chunk(body).forEach((part, index) => {
+      slides.push({ kind: "content", title: index ? `${section.title} (계속)` : section.title, body: part });
+    });
   }
   slides.push({ kind: "end" });
   return slides;

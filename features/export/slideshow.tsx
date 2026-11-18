@@ -14,8 +14,6 @@ function slideHtml(slide: Slide): string {
   switch (slide.kind) {
     case "cover":
       return `<section class="slide cover"><h1 class="wordart">${escapeHtml(slide.title)}</h1><p class="note">★ ${escapeHtml(slide.subtitle || "웹에서 퍼온 글")} ★</p><p class="presenter">발표자: feedme</p></section>`;
-    case "divider":
-      return `<section class="slide divider"><p class="badge">간지</p><h1 class="wordart">${escapeHtml(slide.title)}</h1></section>`;
     case "content":
       return `<section class="slide content"><h2 class="title">▶ ${escapeHtml(slide.title)}</h2><div class="body">${markdownToHtml(slide.body)}</div></section>`;
     case "end":
@@ -35,11 +33,10 @@ border:12px ridge #ff00ff}
 .wordart{font-family:"궁서",Gungsuh,GungSeo,Batang,serif;font-weight:900;margin:0;line-height:1.25;text-align:center;
 background:linear-gradient(180deg,#f00,#f90 25%,#ff0 45%,#0c0 62%,#06f 80%,#90f);-webkit-background-clip:text;background-clip:text;color:transparent;
 -webkit-text-stroke:2.5px #000;filter:drop-shadow(5px 5px 0 rgba(0,0,0,.45));transform:skewX(-6deg)}
-.cover,.divider,.end{justify-content:center;align-items:center;gap:36px}
-.cover .wordart,.divider .wordart{font-size:84px}.end .wordart{font-size:96px}
+.cover,.end{justify-content:center;align-items:center;gap:36px}
+.cover .wordart{font-size:84px}.end .wordart{font-size:96px}
 .note{margin:0;padding:6px 16px;background:#ff9;border:3px dashed #f00;font-size:30px;font-weight:700;color:#000}
 .presenter{margin:0;font-size:26px;font-weight:700;color:#00c;background:#fff;border:3px outset #fff;padding:4px 14px}
-.badge{margin:0;font-size:28px;font-weight:700;color:#fff;background:#00c;padding:4px 18px;border:3px outset #66f}
 .title{margin:0 0 18px;font-family:"궁서",Gungsuh,Batang,serif;font-size:46px;color:#03f;background:#ff0;border:4px solid #000;padding:4px 16px;align-self:flex-start;max-width:100%}
 .body{flex:1;min-height:0;overflow:hidden;background:rgba(255,255,230,.92);border:4px double #000;box-shadow:8px 8px 0 rgba(0,0,0,.35);padding:18px 24px;color:#000;font-size:28px;line-height:1.45;overflow-wrap:anywhere}
 .body p,.body ul,.body ol,.body pre,.body blockquote{margin:0 0 .5em}.body ul{list-style:none;padding-left:0}.body ul>li::before{content:"▶ ";color:#f00}

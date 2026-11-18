@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBundle, buildDocument, buildHandoff, bundleFilename, markdownFilename } from "./handoff";
+import { buildDocument, buildHandoff, markdownFilename } from "./handoff";
 
 const page = {
   title: "파일은 앱보다 오래 남는다",
@@ -71,29 +71,5 @@ describe("markdownFilename", () => {
 
   it("쓸 수 있는 글자가 없으면 기본 이름을 쓴다", () => {
     expect(markdownFilename(' ?*: ')).toBe("document.md");
-  });
-});
-
-describe("buildBundle", () => {
-  const a = { title: "글 A", url: "https://a.com/1", markdown: "본문 A" };
-  const b = { title: "글 B", url: "https://b.com/2", markdown: "본문 B" };
-
-  it("글이 하나면 기존 문서 형식과 같다", () => {
-    expect(buildBundle([a])).toBe("# 글 A\n\n출처: https://a.com/1\n\n본문 A");
-  });
-
-  it("글이 여럿이면 글마다 문서를 만들어 --- 구분선으로 잇는다", () => {
-    expect(buildBundle([a, b])).toBe(
-      "# 글 A\n\n출처: https://a.com/1\n\n본문 A\n\n---\n\n# 글 B\n\n출처: https://b.com/2\n\n본문 B",
-    );
-  });
-});
-
-describe("bundleFilename", () => {
-  it("글이 하나면 제목.md, 여럿이면 첫 제목 외 N개.md", () => {
-    const a = { title: "글: A", url: "https://a.com", markdown: "" };
-    const b = { title: "글 B", url: "https://b.com", markdown: "" };
-    expect(bundleFilename([a])).toBe("글 A.md");
-    expect(bundleFilename([a, b, b])).toBe("글 A 외 2개.md");
   });
 });

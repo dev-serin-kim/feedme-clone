@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import { buildBundle, buildHandoff, bundleFilename, markdownFilename, type LlmService } from "../handoff";
+import { buildDocument, buildHandoff, markdownFilename, type LlmService } from "../handoff";
 import { renderSlideshowHtml } from "../slideshow";
 import { buildSlides, type SlidePage } from "../slides";
 import { SlideshowOverlay } from "./slideshow-overlay";
@@ -17,10 +17,10 @@ const PRESETS = ["요약해줘", "한국어로 번역해줘", "쉽게 설명해�
 const CUSTOM = "custom";
 
 /**
- * Sticky export bar under the converted pages. Each page carries only its selected sections:
+ * Sticky export bar under the converted page. The page carries only its selected sections:
  * `markdown` for documents, `sections` for slides. Remount (change `key`) to reset the one-shot prompt.
  */
-export function ExportBar({ pages }: { pages: SlidePage[] }) {
+export function ExportBar({ page }: { page: SlidePage }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
   const [open, setOpen] = useState(false);
@@ -30,8 +30,8 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
   const choice = selected[0];
   const prompt = choice === CUSTOM ? custom.trim() : (choice ?? "");
   const promptLabel = prompt || (choice === CUSTOM ? "직접 입력" : "없음");
-  const document = buildBundle(pages);
-  const empty = pages.every((page) => !page.markdown.trim());
+  const document = buildDocument(page);
+  const empty = !page.markdown.trim();
 
   async function copy() {
     await navigator.clipboard.writeText(document);
@@ -41,7 +41,7 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
   }
 
   function download() {
-    const name = bundleFilename(pages);
+    const name = markdownFilename(page.title);
     const href = URL.createObjectURL(new Blob([document], { type: "text/markdown;charset=utf-8" }));
     const link = Object.assign(window.document.createElement("a"), { href, download: name });
     link.click();
@@ -68,9 +68,8 @@ export function ExportBar({ pages }: { pages: SlidePage[] }) {
   const closeSlides = useCallback(() => setSlidesHtml(null), []);
 
   function openSlides() {
-    const title = pages.length > 1 ? `문서 ${pages.length}개 모음` : pages[0].title;
-    const filename = markdownFilename(title).replace(/\.md$/, ".html");
-    setSlidesHtml(renderSlideshowHtml(buildSlides(pages), title, filename));
+    const filename = markdownFilename(page.title).replace(/\.md$/, ".html");
+    setSlidesHtml(renderSlideshowHtml(buildSlides(page), page.title, filename));
   }
 
   return (
