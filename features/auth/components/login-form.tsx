@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { safeNextPath } from "@/lib/safe-next-path";
 import { createClient } from "@/lib/supabase/client";
+import { supabaseConfig } from "@/lib/supabase/config";
+
+import { AuthUnavailable } from "./auth-unavailable";
 
 /** Email/password sign-in, adapted from the Supabase UI "Password-based Auth" block. */
 export function LoginForm() {
@@ -18,6 +21,8 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  if (!supabaseConfig()) return <AuthUnavailable />;
 
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault();
