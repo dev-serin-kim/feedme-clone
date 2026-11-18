@@ -5,11 +5,13 @@ import { AppHeader } from "@/components/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogoutButton } from "@/features/auth";
 import { ProfileForm } from "@/features/profile";
+import { supabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "설정 - feedme" };
 
 export default async function SettingsPage() {
+  if (!supabaseConfig()) redirect("/auth/login?next=/settings");
   const supabase = await createClient();
   // getClaims() verifies the JWT, so the page never trusts an unverified client session.
   const { data } = await supabase.auth.getClaims();

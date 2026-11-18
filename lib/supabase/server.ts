@@ -1,11 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-/** Create a new client per request; don't keep it in a module-level variable. */
+import { supabaseConfig } from "./config";
+
+/**
+ * Create a new client per request; don't keep it in a module-level variable.
+ * Callers check supabaseConfig() first; this throws when Supabase is not configured.
+ */
 export async function createClient() {
+  const config = supabaseConfig();
+  if (!config) throw new Error("Supabase is not configured");
   const cookieStore = await cookies();
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+  return createServerClient(config.url, config.key, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
