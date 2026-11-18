@@ -4,3 +4,4 @@
 
 - [ui-composition](ui-composition.md) — Read when choosing UI components, page composition, visual tokens, or custom interface boundaries.
 - [dependency-versions](dependency-versions.md) — Read when upgrading dependencies, pinning versions, or wondering why TypeScript stays on 6.x.
+- [visual-direction](visual-direction.md) — Read when styling any screen, choosing colors, fonts, or decorations, or when a design looks "too tacky" and seems to need cleanup.
