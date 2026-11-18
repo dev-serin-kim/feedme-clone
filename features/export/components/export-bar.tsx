@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, ChevronUpIcon, CopyIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
+import { CheckIcon, ChevronUpIcon, CopyIcon, DownloadIcon, ExternalLinkIcon, PresentationIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -8,13 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import { buildDocument, buildHandoff, markdownFilename, type DocumentSource, type LlmService } from "../handoff";
+import { buildBundle, buildHandoff, bundleFilename, markdownFilename, type LlmService } from "../handoff";
+import { renderSlideshowHtml } from "../slideshow";
+import { buildSlides, type SlidePage } from "../slides";
 
 const PRESETS = ["요약해줘", "한국어로 번역해줘", "쉽게 설명해줘"] as const;
 const CUSTOM = "custom";
 
-/** Sticky export bar under a converted page. Remount (change `key`) to reset the one-shot prompt. */
-export function ExportBar({ page }: { page: DocumentSource }) {
+/**
+ * Sticky export bar under the converted pages. Each page carries only its selected sections:
+ * `markdown` for documents, `sections` for slides. Remount (change `key`) to reset the one-shot prompt.
+ */
+export function ExportBar({ pages }: { pages: SlidePage[] }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
   const [open, setOpen] = useState(false);
@@ -23,7 +28,8 @@ export function ExportBar({ page }: { page: DocumentSource }) {
   const choice = selected[0];
   const prompt = choice === CUSTOM ? custom.trim() : (choice ?? "");
   const promptLabel = prompt || (choice === CUSTOM ? "직접 입력" : "없음");
-  const document = buildDocument(page);
+  const document = buildBundle(pages);
+  const empty = pages.every((page) => !page.markdown.trim());
 
   async function copy() {
     await navigator.clipboard.writeText(document);
@@ -33,7 +39,7 @@ export function ExportBar({ page }: { page: DocumentSource }) {
   }
 
   function download() {
-    const name = markdownFilename(page.title);
+    const name = bundleFilename(pages);
     const href = URL.createObjectURL(new Blob([document], { type: "text/markdown;charset=utf-8" }));
     const link = Object.assign(window.document.createElement("a"), { href, download: name });
     link.click();
@@ -55,6 +61,16 @@ export function ExportBar({ page }: { page: DocumentSource }) {
     toast(`${service}를 새 탭에서 열었어요`, {
       description: prompt ? `“${prompt}” 프롬프트와 본문을 채워 두었어요.` : "본문을 채워 두었어요.",
     });
+  }
+
+  function openSlides() {
+    const title = pages.length > 1 ? `문서 ${pages.length}개 모음` : pages[0].title;
+    const filename = markdownFilename(title).replace(/\.md$/, ".html");
+    const html = renderSlideshowHtml(buildSlides(pages), title, filename);
+    const href = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    window.open(href, "_blank");
+    setTimeout(() => URL.revokeObjectURL(href), 60_000);
+    toast("발표 자료를 새 탭에서 열었어요", { description: "→/Space로 넘기고 F로 전체 화면이에요." });
   }
 
   return (
@@ -99,15 +115,19 @@ export function ExportBar({ page }: { page: DocumentSource }) {
           <ChevronUpIcon className={open ? "rotate-180" : undefined} />
         </Button>
         <span className="hidden flex-1 sm:block" />
-        <Button variant="outline" size="icon" aria-label="복사하기" title="복사하기" onClick={copy}>
+        <Button variant="outline" size="icon" aria-label="복사하기" title="복사하기" disabled={empty} onClick={copy}>
           {copied ? <CheckIcon /> : <CopyIcon />}
         </Button>
-        <Button variant="outline" size="icon" aria-label=".md 다운로드" title=".md 다운로드" onClick={download}>
+        <Button variant="outline" size="icon" aria-label=".md 다운로드" title=".md 다운로드" disabled={empty} onClick={download}>
           <DownloadIcon />
+        </Button>
+        <Button variant="outline" disabled={empty} onClick={openSlides}>
+          <PresentationIcon data-icon="inline-start" />
+          PPT로 보기
         </Button>
         <div className="flex w-full gap-2 sm:w-auto">
           {(["ChatGPT", "Claude"] as const).map((service) => (
-            <Button key={service} className="flex-1 sm:flex-none" onClick={() => openIn(service)}>
+            <Button key={service} className="flex-1 sm:flex-none" disabled={empty} onClick={() => openIn(service)}>
               <ExternalLinkIcon data-icon="inline-start" />
               {service}로 열기
             </Button>

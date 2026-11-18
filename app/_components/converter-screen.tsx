@@ -1,9 +1,7 @@
 "use client";
 
-import { CircleAlertIcon, FileTextIcon, LinkIcon, Loader2Icon, XIcon } from "lucide-react";
+import { CircleAlertIcon, FileTextIcon, LinkIcon, Loader2Icon, PlusIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,17 +10,18 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ConvertedPage, ConvertResult } from "@/features/convert";
-import { ExportBar } from "@/features/export";
 
 import { EXAMPLES } from "./examples";
+import { ResultCard, type Failure } from "./result-card";
 
 type ScreenState =
   | { status: "idle" }
-  | { status: "invalid" }
+  | { status: "invalid"; rows: number[] }
   | { status: "loading" }
   | { status: "error"; error: "fetch" | "empty" }
-  | { status: "result"; page: ConvertedPage };
+  | { status: "result"; id: number; pages: ConvertedPage[]; failures: Failure[] };
 
+const MAX_URLS = 5;
 const WEB_URL = /^https?:\/\/[^\s/?#]+\.[^\s/?#]+/i;
 
 const ERRORS = {
@@ -36,44 +35,68 @@ const ERRORS = {
   },
 } as const;
 
+async function requestConvert(url: string): Promise<ConvertResult> {
+  try {
+    const response = await fetch("/api/convert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    return await response.json();
+  } catch {
+    return { ok: false, error: "fetch" };
+  }
+}
+
 /** `initial` is a page converted on the server so the first visit opens on a result instead of the empty state. */
 export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
-  const [url, setUrl] = useState(initial?.url ? decodeURI(initial.url) : "");
-  const [state, setState] = useState<ScreenState>(initial ? { status: "result", page: initial } : { status: "idle" });
+  const [urls, setUrls] = useState<string[]>([initial?.url ? decodeURI(initial.url) : ""]);
+  const [state, setState] = useState<ScreenState>(
+    initial ? { status: "result", id: 0, pages: [initial], failures: [] } : { status: "idle" },
+  );
   const inputRef = useRef<HTMLInputElement>(null);
+  const rowRefs = useRef<(HTMLInputElement | null)[]>([]);
+  /** Row the cursor was in last; example links fill this row. */
+  const lastRow = useRef<number | null>(null);
   const requestId = useRef(0);
 
-  async function convert(target: string) {
-    if (!WEB_URL.test(target.trim())) {
-      setState({ status: "invalid" });
+  function setUrlAt(index: number, value: string) {
+    setUrls((current) => current.map((url, i) => (i === index ? value : url)));
+    if (state.status === "invalid") setState({ status: "idle" });
+  }
+
+  async function convert() {
+    const targets = urls.map((url, row) => ({ url: url.trim(), row })).filter((target) => target.url);
+    const invalidRows = targets.length ? targets.filter((t) => !WEB_URL.test(t.url)).map((t) => t.row) : [0];
+    if (invalidRows.length) {
+      setState({ status: "invalid", rows: invalidRows });
       inputRef.current?.focus();
       return;
     }
     const id = ++requestId.current;
     setState({ status: "loading" });
-    let result: ConvertResult;
-    try {
-      const response = await fetch("/api/convert", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: target }),
-      });
-      result = await response.json();
-    } catch {
-      result = { ok: false, error: "fetch" };
-    }
+    const results = await Promise.all(targets.map((target) => requestConvert(target.url)));
     if (id !== requestId.current) return; // cleared or superseded meanwhile
-    if (result.ok) setState({ status: "result", page: result.page });
-    else if (result.error === "invalid") setState({ status: "invalid" });
-    else setState({ status: "error", error: result.error });
+
+    const pages: ConvertedPage[] = [];
+    const failures: Failure[] = [];
+    results.forEach((result, index) => {
+      if (result.ok) pages.push(result.page);
+      else failures.push({ url: targets[index].url, error: result.error === "empty" ? "empty" : "fetch" });
+    });
+    if (pages.length) setState({ status: "result", id, pages, failures });
+    else setState({ status: "error", error: failures.every((f) => f.error === "empty") ? "empty" : "fetch" });
   }
 
   function clear() {
     requestId.current++;
-    setUrl("");
+    setUrls([""]);
+    lastRow.current = null;
     setState({ status: "idle" });
     inputRef.current?.focus();
   }
+
+  const invalidRows = state.status === "invalid" ? state.rows : [];
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 pb-12">
@@ -94,43 +117,65 @@ export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
         </p>
         <form
           noValidate
-          className="mt-2 flex flex-col gap-2 sm:flex-row"
+          className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start"
           onSubmit={(event) => {
             event.preventDefault();
-            convert(url);
+            convert();
           }}
         >
-          <div className="relative flex flex-1 items-center">
-            <LinkIcon className="pointer-events-none absolute left-3 size-4 text-[#0066cc]" />
-            <Input
-              ref={inputRef}
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              placeholder="https://example.com/article"
-              aria-label="웹 페이지 URL"
-              aria-invalid={state.status === "invalid"}
-              aria-describedby={state.status === "invalid" ? "url-error" : undefined}
-              value={url}
-              onChange={(event) => {
-                setUrl(event.target.value);
-                if (state.status === "invalid") setState({ status: "idle" });
-              }}
-              className="pr-10 pl-9"
-            />
-            {url && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="지우기"
-                title="지우기"
-                onClick={clear}
-                className="absolute right-1 text-[#0066cc]"
-              >
-                <XIcon />
-              </Button>
-            )}
+          <div className="flex flex-1 flex-col gap-2">
+            {urls.map((url, index) => (
+              <div key={index} className="relative flex items-center">
+                <LinkIcon className="pointer-events-none absolute left-3 size-4 text-[#0066cc]" />
+                <Input
+                  ref={(element) => {
+                    rowRefs.current[index] = element;
+                    if (index === 0) inputRef.current = element;
+                  }}
+                  onFocus={() => (lastRow.current = index)}
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  placeholder="https://example.com/article"
+                  aria-label={index === 0 ? "웹 페이지 URL" : `웹 페이지 URL ${index + 1}`}
+                  aria-invalid={invalidRows.includes(index)}
+                  aria-describedby={invalidRows.includes(index) ? "url-error" : undefined}
+                  value={url}
+                  onChange={(event) => setUrlAt(index, event.target.value)}
+                  className="pr-10 pl-9"
+                />
+                {index === 0 && url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="지우기"
+                    title="지우기"
+                    onClick={clear}
+                    className="absolute right-1 text-[#0066cc]"
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+                {index > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`URL ${index + 1} 빼기`}
+                    title="이 칸 빼기"
+                    onClick={() => {
+                      setUrls((current) => current.filter((_, i) => i !== index));
+                      lastRow.current = null;
+                      if (state.status === "invalid") setState({ status: "idle" });
+                    }}
+                    className="absolute right-1 text-[#0066cc]"
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
           <Button type="submit" disabled={state.status === "loading"}>
             변환하기
@@ -141,6 +186,18 @@ export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
             http:// 또는 https://로 시작하는 웹 페이지 주소를 입력해 주세요.
           </p>
         )}
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={urls.length >= MAX_URLS}
+            onClick={() => setUrls((current) => [...current, ""])}
+          >
+            <PlusIcon data-icon="inline-start" />
+            URL 추가 ({urls.length}/{MAX_URLS})
+          </Button>
+        </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-black dark:text-[#ffff66]">
           <span>예시:</span>
           {EXAMPLES.map((example) => (
@@ -148,9 +205,11 @@ export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
               key={example}
               type="button"
               onClick={() => {
-                setUrl(example);
-                if (state.status === "invalid") setState({ status: "idle" });
-                inputRef.current?.focus();
+                const focused = lastRow.current;
+                const empty = urls.findIndex((url) => !url.trim());
+                const row = focused !== null && focused < urls.length ? focused : Math.max(empty, 0);
+                setUrlAt(row, example);
+                rowRefs.current[row]?.focus();
               }}
               className="break-all text-left text-[#0000ee] underline underline-offset-2 hover:text-[#ff00ff] dark:text-[#66ccff]"
             >
@@ -195,34 +254,7 @@ export function ConverterScreen({ initial }: { initial?: ConvertedPage }) {
         </Alert>
       )}
 
-      {state.status === "result" && <ResultCard page={state.page} />}
+      {state.status === "result" && <ResultCard key={state.id} pages={state.pages} failures={state.failures} />}
     </main>
-  );
-}
-
-function ResultCard({ page }: { page: ConvertedPage }) {
-  const shortUrl = decodeURI(page.url).replace(/^https?:\/\//, "");
-  return (
-    <Card className="gap-0 overflow-visible py-0">
-      <header className="flex flex-col gap-2 border-b-3 border-dotted border-[#ff00ff] bg-(image:--header-panel) px-4 py-5 text-black sm:px-6">
-        <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-[#006600]">
-          <span>{page.site}</span>
-          <span aria-hidden>·</span>
-          <a href={page.url} target="_blank" rel="noopener noreferrer" className="break-all underline underline-offset-2">
-            {shortUrl}
-          </a>
-          <span aria-hidden>·</span>
-          <span>{page.length.toLocaleString("ko-KR")}자</span>
-        </p>
-        <h2 className="font-[family-name:var(--font-wordart)] text-2xl leading-snug text-[#cc0000] underline decoration-[#0000ff] decoration-wavy underline-offset-[6px]">
-          {page.title}
-        </h2>
-        {page.author && <p className="font-bold text-[#9900cc]">{page.author}</p>}
-      </header>
-      <div className="markdown px-4 py-6 sm:px-6">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{page.markdown}</ReactMarkdown>
-      </div>
-      <ExportBar key={page.url + page.length} page={page} />
-    </Card>
   );
 }

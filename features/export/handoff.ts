@@ -44,3 +44,13 @@ export function markdownFilename(title: string): string {
     .trim();
   return `${name || "document"}.md`;
 }
+
+/** One document per page, joined by `---` when there are several. */
+export function buildBundle(pages: DocumentSource[]): string {
+  return pages.map(buildDocument).join("\n\n---\n\n");
+}
+
+export function bundleFilename(pages: DocumentSource[]): string {
+  const title = pages[0]?.title ?? "";
+  return markdownFilename(pages.length > 1 ? `${title} 외 ${pages.length - 1}개` : title);
+}
