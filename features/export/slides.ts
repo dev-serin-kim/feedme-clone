@@ -15,11 +15,29 @@ export type Slide =
 /** Rough body size per slide before splitting into "(계속)" slides; the slide then shrinks text to fit. */
 export const SLIDE_CHUNK = 700;
 
+/** Paragraph blocks separated by blank lines, keeping fenced code blocks whole. */
+function blocks(body: string): string[] {
+  const result: string[] = [];
+  let lines: string[] = [];
+  let inFence = false;
+  for (const line of body.split("\n")) {
+    if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
+    if (!inFence && !line.trim()) {
+      if (lines.length) result.push(lines.join("\n"));
+      lines = [];
+    } else {
+      lines.push(line);
+    }
+  }
+  if (lines.length) result.push(lines.join("\n"));
+  return result;
+}
+
 /** Splits a body at paragraph boundaries into chunks of about SLIDE_CHUNK characters. */
 function chunk(body: string): string[] {
   const chunks: string[] = [];
   let current = "";
-  for (const paragraph of body.split(/\n{2,}/)) {
+  for (const paragraph of blocks(body)) {
     if (current && current.length + paragraph.length > SLIDE_CHUNK) {
       chunks.push(current);
       current = paragraph;
@@ -41,7 +59,15 @@ export function buildSlides(pages: SlidePage[]): Slide[] {
   for (const page of pages) {
     if (many) slides.push({ kind: "divider", title: page.title });
     for (const section of page.sections) {
-      chunk(section.body).forEach((body, index) => {
+      // Footnote definitions render to nothing once split from their references, leaving blank slides.
+      const body = section.body
+        .split("\n")
+        .filter((line) => !/^\s*\[\^[^\]]+\]:/.test(line))
+        .join("\n")
+        .replace(/\[\^[^\]]+\]/g, "")
+        .trim();
+      if (!body) continue;
+      chunk(body).forEach((body, index) => {
         slides.push({ kind: "content", title: index ? `${section.title} (계속)` : section.title, body });
       });
     }
